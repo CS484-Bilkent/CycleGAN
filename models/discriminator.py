@@ -25,7 +25,7 @@ class Block(nn.Module):
 		)
 
 	def forward(self, x):
-		return self.conx(x)
+		return self.conv(x)
 	
 class Discriminator(nn.Module):
 	def __init__(self, in_channels=3, features=[64, 128, 256, 512], *args, **kwargs):
@@ -53,4 +53,4 @@ class Discriminator(nn.Module):
 		x = self.initial(x)
 		x = self.model(x)
 
-		return torch.sigmoid(x)
+		return torch.sigmoid(x) # sigmoid to get probability
