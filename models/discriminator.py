@@ -37,20 +37,16 @@ class Discriminator(nn.Module):
 			nn.LeakyReLU(0.2)
 		)
 
-		layers = []
-		in_channels = features[0] # now channels is 64 instead of 3
+		layers = [
+				Block(features[i - 1], features[i], stride=1 if i == len(features[1:]) - 1 else 2) 
+				for i in range(1, len(features))]
 
-		for i, feature in enumerate(features[1:]):
-			stride = 1 if i == len(features[1:]) - 1 else 2
-			layers.append(Block(in_channels, feature, stride=stride))
-			in_channels = feature
-
-		layers.append(nn.Conv2d(in_channels, 1, kernel_size=4, stride=1, padding=1, padding_mode=Constants.PADDING_MODE)) # reduce to 1 channel
+		layers += [
+			nn.Conv2d(features[-1], 1, kernel_size=4, stride=1, padding=1, padding_mode=Constants.PADDING_MODE)] # reduce to 1 channel
 		
-		self.model = nn.Sequential(*layers)
+		self.model = nn.Sequential(*([self.initial] + layers))
 
 	def forward(self, x):
-		x = self.initial(x)
 		x = self.model(x)
 
 		return torch.sigmoid(x) # sigmoid to get probability
