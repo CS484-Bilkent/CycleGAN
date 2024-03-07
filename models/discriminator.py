@@ -65,3 +65,10 @@ class Discriminator(nn.Module):
         x = self.model(x)
 
         return torch.sigmoid(x)  # sigmoid to get probability
+
+
+if __name__ == "__main__":
+    x = torch.randn((1, 3, 256, 256))  # B, C, H, W
+    model = Discriminator(in_channels=3)
+    print(model(x).shape)
+    print(model)
