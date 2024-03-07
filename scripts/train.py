@@ -9,9 +9,11 @@ from models.discriminator import Discriminator
 from models.generator import Generator
 from dataset.dataset import ABDataset
 from dataset.dataset import inv_normalize
+from dataset.dataset import img_transform as transform
 from config.args import parser
 from util.log import log
 from tqdm import tqdm
+from torch.utils.data import DataLoader
 
 import torch
 import torch.nn as nn
@@ -123,8 +125,8 @@ def main(args):
     MSE = nn.MSELoss()
 
     # Usual stuff
-    dataset = ABDataset(root_a=args.train_dir + "/trainA", root_b=args.train_dir + "/trainB")
-    data_loader = dataset.loader(dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
+    dataset = ABDataset(root_a=args.train_dir + "/trainA", root_b=args.train_dir + "/trainB", transform=transform)
+    data_loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
     if args.load_checkpoints:
         # ...

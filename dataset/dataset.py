@@ -13,7 +13,7 @@ import os
 # The images were scaled to 256 × 256 pixels.
 # The training set size of each class: 939 (horse), 1177 (zebra), 996 (apple), and 1020 (orange).
 
-transform = transforms.Compose(
+img_transform = transforms.Compose(
     [
         transforms.Resize(size=(256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
@@ -24,8 +24,7 @@ transform = transforms.Compose(
 )
 
 inv_normalize = transforms.Normalize(
-    mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
-    std=[1 / 0.229, 1 / 0.224, 1 / 0.225]
+    mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225], std=[1 / 0.229, 1 / 0.224, 1 / 0.225]
 )
 
 
