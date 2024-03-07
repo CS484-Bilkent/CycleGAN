@@ -88,8 +88,10 @@ def train(
         opt_gen_b.step()
 
         if i % 200 == 0:
-            save_image(inv_normalize(fake_a), f"runs/{args.run_name}/epoch_{epoch}_fake_a_{i}.png")
-            save_image(inv_normalize(fake_b), f"runs/{args.run_name}/epoch_{epoch}_fake_b_{i}.png")
+            save_image(fake_a, f"runs/{args.run_name}/epoch_{epoch}_fake_a_{i}.png")
+            save_image(real_a, f"runs/{args.run_name}/epoch_{epoch}_real_a_{i}.png")
+            save_image(fake_b, f"runs/{args.run_name}/epoch_{epoch}_fake_b_{i}.png")
+            save_image(real_b, f"runs/{args.run_name}/epoch_{epoch}_real_b_{i}.png")
 
 
 def main(args):
