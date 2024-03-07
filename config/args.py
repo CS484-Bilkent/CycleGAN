@@ -3,7 +3,7 @@ import config.config as config
 
 parser = argparse.ArgumentParser(description="Unofficial CycleGAN implementation using PyTorch")
 
-parser.add_argument("--run-name", type=str)
+parser.add_argument("--run-name", type=str, required=True)
 parser.add_argument("--device", type=str, default=config.DEVICE)
 parser.add_argument("--train-dir", type=str, default=config.TRAIN_DIR)
 parser.add_argument("--test-dir", type=str, default=config.TEST_DIR)
