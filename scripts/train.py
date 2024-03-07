@@ -35,15 +35,15 @@ def train(
         disc_a_real = disc_a(real_a)
         disc_a_fake = disc_a(fake_b.detach())
 
-        disc_b_loss = MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
+        disc_a_loss = MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
 
         fake_a = gen_b(real_b)
         disc_b_real = disc_a(real_b)
         disc_b_fake = disc_a(fake_a.detach())
 
-        disc_a_loss = MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
+        disc_b_loss = MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
 
-        disc_loss = disc_a_loss + disc_b_loss  # total loss here
+        disc_loss = (disc_a_loss + disc_b_loss) / 2  # total loss here (paper mentiosn /2, so I just use it)
 
         # Usual stuff
         opt_disc_a.zero_grad()
@@ -139,7 +139,21 @@ def main(args):
     for epoch in range(args.num_epochs):
         log("epoch", epoch + 1, "/", args.num_epochs)
 
-        train(disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_gen_b, L1, MSE, data_loader, args, epoch)
+        train(
+            disc_a,
+            disc_b,
+            gen_a,
+            gen_b,
+            opt_disc_a,
+            opt_disc_b,
+            opt_gen_a,
+            opt_gen_b,
+            L1,
+            MSE,
+            data_loader,
+            args,
+            epoch,
+        )
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
             # ...
