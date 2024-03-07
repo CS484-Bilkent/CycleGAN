@@ -15,7 +15,7 @@ from tqdm import tqdm
 
 import torch
 import torch.nn as nn
-from torch.optim import optim
+from torch import optim
 from torchvision.utils import save_image
 
 
