@@ -86,8 +86,8 @@ def train(disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_g
         opt_gen_b.step()
 
         if i % 200 == 0:
-            save_image(inv_normalize(fake_a), f"runs/{args.run_name}/saved_images/fake_a_{i}.png")
-            save_image(inv_normalize(fake_b), f"runs/{args.run_name}/saved_images/fake_b_{i}.png")
+            save_image(inv_normalize(fake_a), f"runs/{args.run_name}/fake_a_{i}.png")
+            save_image(inv_normalize(fake_b), f"runs/{args.run_name}/fake_b_{i}.png")
 
 
 def main(args):
@@ -143,4 +143,5 @@ def main(args):
 if __name__ == "__main__":
     # Parse the command-line arguments
     args = parser.parse_args()
+    os.makedirs(f"runs/{args.run_name}", exist_ok=False)
     main(args)
