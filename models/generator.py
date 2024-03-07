@@ -23,7 +23,7 @@ class Conv7StrNBlock(nn.Module):
         )
 
     def forward(self, x):
-        self.conv(x)
+        return self.conv(x)
 
 
 # d-k block -- a 3×3 Convolution-InstanceNorm-ReLU layer with k filters and stride 2
@@ -45,7 +45,8 @@ class UpConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, use_act=True, **kwargs):
         super().__init__()
         self.conv = nn.Sequential(
-            nn.ConvTranspose2d(in_channels, out_channels, padding_mode=Constants.PADDING_MODE, **kwargs),
+            # We have tried to try other padding modes but only zeros is supported...
+            nn.ConvTranspose2d(in_channels, out_channels, padding_mode="zeros", **kwargs),
             nn.InstanceNorm2d(out_channels),
             nn.ReLU(inplace=True) if use_act else nn.Identity(),
         )
@@ -90,7 +91,7 @@ class Generator(nn.Module):
                 padding=1,
             )
         )
-        self.down_blocks = nn.ModuleList(*down_blocks)
+        self.down_blocks = nn.ModuleList(down_blocks)
 
         residual_blocks = []
         for _ in range(num_residuals):
@@ -125,7 +126,7 @@ class Generator(nn.Module):
             )
         )
 
-        self.up_blocks = nn.ModuleList(*up_blocks)
+        self.up_blocks = nn.ModuleList(up_blocks)
 
         # c7s1-3
         self.last = Conv7StrNBlock(num_features * 1, img_channels, stride=1)
@@ -138,3 +139,9 @@ class Generator(nn.Module):
         for layer in self.up_blocks:
             x = layer(x)
         return torch.tanh(self.last(x))
+
+
+if __name__ == "__main__":
+    x = torch.randn((1, 3, 256, 256))
+    model = Generator(img_channels=3)
+    print(model(x).shape)
