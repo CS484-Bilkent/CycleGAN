@@ -92,8 +92,8 @@ def main(args):
     disc_a = Discriminator(in_channels=3).to(args.device)  # RGB
     disc_b = Discriminator(in_channels=3).to(args.device)  # RGB
 
-    gen_a = Generator(in_channels=3, num_residuals=9).to(args.device)  # RGB
-    gen_b = Generator(in_channels=3, num_residuals=9).to(args.device)  # RGB
+    gen_a = Generator(img_channels=3, num_residuals=9).to(args.device)  # RGB
+    gen_b = Generator(img_channels=3, num_residuals=9).to(args.device)  # RGB
 
     opt_disc_a = optim.Adam(
         disc_a.parameters(),
