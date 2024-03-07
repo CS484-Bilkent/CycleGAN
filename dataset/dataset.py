@@ -7,7 +7,7 @@
 
 from torch.utils.data import Dataset
 from PIL import Image
-from torch.vision import transforms
+from torchvision import transforms
 import os
 
 # The images were scaled to 256 × 256 pixels.
@@ -21,6 +21,11 @@ transform = transforms.Compose(
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # imagenet values
         transforms.ToTensor(),
     ]
+)
+
+inv_normalize = transforms.Normalize(
+    mean=[-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225],
+    std=[1 / 0.229, 1 / 0.224, 1 / 0.225]
 )
 
 

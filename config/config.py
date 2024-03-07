@@ -1,5 +1,4 @@
 import torch
-from torch.vision.transforms import v2
 
 """
 For all the experiments, we set λ = 10 in Equation 3. 
@@ -12,7 +11,7 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 TRAIN_DIR = "data/train"
 TEST_DIR = "dataset/test"
 BATCH_SIZE = 1  # Adjust as needed
-LEARNING_RATE = 1e-5  # TODO: try with 2e-4
+LEARNING_RATE = 2e-4  # TODO: try with 1e-5
 
 # From the paper:
 # The identity mapping loss of weight 0.5λ was used.
@@ -23,8 +22,10 @@ LAMBDA_CYCLE = 10
 NUM_WORKERS = 4
 
 NUM_EPOCHS = 10
-LOAD_MODEL = False
-SAVE_MODEL = True
+LOAD_CHECKPOINTS = False
+SAVE_CHECKPOINTS = True
+
+SAVE_CHECKPOINTS_EPOCH = 5
 
 CHECKPOINT_GEN_A = "gen_a.pth"
 CHECKPOINT_GEN_B = "gen_b.pth"
