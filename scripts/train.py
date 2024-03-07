@@ -21,7 +21,9 @@ from torch import optim
 from torchvision.utils import save_image
 
 
-def train(disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_gen_b, L1, MSE, data_loader, args):
+def train(
+    disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_gen_b, L1, MSE, data_loader, args, epoch=0
+):
     tqdm_loop = tqdm(enumerate(data_loader), total=len(data_loader), leave=False)
 
     for i, (real_a, real_b) in tqdm_loop:
@@ -86,8 +88,8 @@ def train(disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_g
         opt_gen_b.step()
 
         if i % 200 == 0:
-            save_image(inv_normalize(fake_a), f"runs/{args.run_name}/fake_a_{i}.png")
-            save_image(inv_normalize(fake_b), f"runs/{args.run_name}/fake_b_{i}.png")
+            save_image(inv_normalize(fake_a), f"runs/{args.run_name}/epoch_{epoch}_fake_a_{i}.png")
+            save_image(inv_normalize(fake_b), f"runs/{args.run_name}/epoch_{epoch}_fake_b_{i}.png")
 
 
 def main(args):
@@ -133,7 +135,9 @@ def main(args):
         log("Loading Checkpoints...")
 
     for epoch in range(args.num_epochs):
-        train(disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_gen_b, L1, MSE, data_loader, args)
+        log("epoch", epoch + 1, "/", args.num_epochs)
+
+        train(disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_gen_b, L1, MSE, data_loader, args, epoch)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
             # ...
@@ -143,5 +147,6 @@ def main(args):
 if __name__ == "__main__":
     # Parse the command-line arguments
     args = parser.parse_args()
+    log("Using args:", args)
     os.makedirs(f"runs/{args.run_name}", exist_ok=False)
     main(args)

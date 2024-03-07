@@ -16,7 +16,7 @@ LEARNING_RATE = 2e-4  # TODO: try with 1e-5
 # From the paper:
 # The identity mapping loss of weight 0.5λ was used.
 # We set λ = 10.
-LAMBDA_IDENTITY = 0.0
+LAMBDA_IDENTITY = 10
 LAMBDA_CYCLE = 10
 
 NUM_WORKERS = 4
