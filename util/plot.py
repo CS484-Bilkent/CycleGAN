@@ -17,4 +17,4 @@ def plot_loss(disc_losses, gen_losses, file_name, args=None):
 
     plt.grid(True)
 
-    plt.savefig(f"results/{args.run_name}_{file_name}.png")
+    plt.savefig(f"results/{args.run_name}/{file_name}.png")
