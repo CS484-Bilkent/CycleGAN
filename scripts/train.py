@@ -13,8 +13,10 @@ from dataset.dataset import img_transform as transform
 from config.args import parser
 from util.log import log
 from util.image import save_combined_image
+from util.plot import plot_loss
 from tqdm import tqdm
 from torch.utils.data import DataLoader
+from collections import deque
 
 import torch
 import torch.nn as nn
@@ -63,6 +65,9 @@ def main(args):
         # ...
         log("Loading Checkpoints...")
 
+    disc_losses = deque(maxlen=100)
+    gen_losses = deque(maxlen=100)
+
     for epoch in range(args.num_epochs):
         log("epoch", epoch + 1, "/", args.num_epochs)
 
@@ -93,14 +98,16 @@ def main(args):
                 disc_a_loss + disc_b_loss
             ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
 
-            log(
-                "Discriminator A Loss",
-                disc_a_loss.item(),
-                "Discriminator B Loss",
-                disc_b_loss.item(),
-                "Discriminator Loss:",
-                disc_loss.item(),
-            )
+            # log(
+            #     "\rDiscriminator A Loss",
+            #     disc_a_loss.item(),
+            #     "Discriminator B Loss",
+            #     disc_b_loss.item(),
+            #     "Discriminator Loss:",
+            #     disc_loss.item(),
+            # )
+
+            disc_losses.append(disc_loss.item())
 
             # Usual stuff
             opt_disc_a.zero_grad()
@@ -137,22 +144,24 @@ def main(args):
                 + identity_b_loss * args.lambda_identity
             )
 
-            log(
-                "Generator A Loss",
-                generator_loss_a.item(),
-                "Generator B Loss",
-                generator_loss_b.item(),
-                "Cycle A Loss",
-                cycle_a_loss.item(),
-                "Cycle B Loss",
-                cycle_b_loss.item(),
-                "Identity A Loss",
-                identity_a_loss.item(),
-                "Identity B Loss",
-                identity_b_loss.item(),
-                "Generator Loss:",
-                gen_loss.item(),
-            )
+            gen_losses.append(gen_loss.item())
+
+            # log(
+            #     "Generator A Loss",
+            #     generator_loss_a.item(),
+            #     "Generator B Loss",
+            #     generator_loss_b.item(),
+            #     "Cycle A Loss",
+            #     cycle_a_loss.item(),
+            #     "Cycle B Loss",
+            #     cycle_b_loss.item(),
+            #     "Identity A Loss",
+            #     identity_a_loss.item(),
+            #     "Identity B Loss",
+            #     identity_b_loss.item(),
+            #     "Generator Loss:",
+            #     gen_loss.item(),
+            # )
 
             # Usual stuff
             opt_gen_a.zero_grad()
@@ -163,6 +172,7 @@ def main(args):
 
             if i % 200 == 0:
                 save_combined_image(fake_a, real_a, fake_b, real_b, epoch, i, args.run_name)
+                plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{i}", args)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
             # ...
@@ -174,4 +184,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     log("Using args:", args)
     os.makedirs(f"runs/{args.run_name}", exist_ok=False)
+    os.makedirs(f"results/{args.run_name}", exist_ok=False)
     main(args)
