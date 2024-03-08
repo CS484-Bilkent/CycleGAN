@@ -93,6 +93,15 @@ def main(args):
                 disc_a_loss + disc_b_loss
             ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
 
+            log(
+                "Discriminator A Loss",
+                disc_a_loss.item(),
+                "Discriminator B Loss",
+                disc_b_loss.item(),
+                "Discriminator Loss:",
+                disc_loss.item(),
+            )
+
             # Usual stuff
             opt_disc_a.zero_grad()
             opt_disc_b.zero_grad()
@@ -126,6 +135,23 @@ def main(args):
                 + cycle_b_loss * args.lambda_cycle
                 + identity_a_loss * args.lambda_identity
                 + identity_b_loss * args.lambda_identity
+            )
+
+            log(
+                "Generator A Loss",
+                generator_loss_a.item(),
+                "Generator B Loss",
+                generator_loss_b.item(),
+                "Cycle A Loss",
+                cycle_a_loss.item(),
+                "Cycle B Loss",
+                cycle_b_loss.item(),
+                "Identity A Loss",
+                identity_a_loss.item(),
+                "Identity B Loss",
+                identity_b_loss.item(),
+                "Generator Loss:",
+                gen_loss.item(),
             )
 
             # Usual stuff
