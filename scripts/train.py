@@ -65,8 +65,8 @@ def main(args):
         # ...
         log("Loading Checkpoints...")
 
-    disc_losses = deque(maxlen=100)
-    gen_losses = deque(maxlen=100)
+    disc_losses = deque(maxlen=200)
+    gen_losses = deque(maxlen=200)
 
     for epoch in range(args.num_epochs):
         log("epoch", epoch + 1, "/", args.num_epochs)
