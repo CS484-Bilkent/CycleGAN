@@ -12,86 +12,13 @@ from dataset.dataset import inv_normalize
 from dataset.dataset import img_transform as transform
 from config.args import parser
 from util.log import log
+from util.image import save_combined_image
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 import torch
 import torch.nn as nn
 from torch import optim
-from torchvision.utils import save_image
-
-
-def train(
-    disc_a, disc_b, gen_a, gen_b, opt_disc_a, opt_disc_b, opt_gen_a, opt_gen_b, L1, MSE, data_loader, args, epoch=0
-):
-    tqdm_loop = tqdm(enumerate(data_loader), total=len(data_loader), leave=False)
-
-    for i, (real_a, real_b) in tqdm_loop:
-        real_a = real_a.to(args.device)
-        real_b = real_b.to(args.device)
-
-        # Discriminators
-        fake_b = gen_a(real_a)
-        disc_a_real = disc_a(real_a)
-        disc_a_fake = disc_a(fake_b.detach())
-
-        disc_a_loss = MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
-
-        fake_a = gen_b(real_b)
-        disc_b_real = disc_a(real_b)
-        disc_b_fake = disc_a(fake_a.detach())
-
-        disc_b_loss = MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
-
-        disc_loss = (disc_a_loss + disc_b_loss) / 2  # total loss here (paper mentiosn /2, so I just use it)
-
-        # Usual stuff
-        opt_disc_a.zero_grad()
-        opt_disc_b.zero_grad()
-        disc_loss.backward()
-        opt_disc_a.step()
-        opt_disc_b.step()
-
-        # Generators
-        # Adversarial Loss
-        disc_a_fake = disc_a(fake_a)
-        disc_b_fake = disc_b(fake_b)
-        generator_loss_a = MSE(disc_a_fake, torch.ones_like(disc_a_fake))
-        generator_loss_b = MSE(disc_b_fake, torch.ones_like(disc_b_fake))
-
-        # Cycle Loss
-        cycle_a = gen_a(fake_b)
-        cycle_b = gen_b(fake_a)
-        cycle_a_loss = L1(real_a, cycle_a)
-        cycle_b_loss = L1(real_b, cycle_b)
-
-        # Identity Loss
-        identity_a = gen_a(real_a)
-        identity_b = gen_b(real_b)
-        identity_a_loss = L1(real_a, identity_a)
-        identity_b_loss = L1(real_b, identity_b)
-
-        gen_loss = (
-            generator_loss_a
-            + generator_loss_b
-            + cycle_a_loss * args.lambda_cycle
-            + cycle_b_loss * args.lambda_cycle
-            + identity_a_loss * args.lambda_identity
-            + identity_b_loss * args.lambda_identity
-        )
-
-        # Usual stuff
-        opt_gen_a.zero_grad()
-        opt_gen_b.zero_grad()
-        gen_loss.backward()
-        opt_gen_a.step()
-        opt_gen_b.step()
-
-        if i % 200 == 0:
-            save_image(fake_a, f"runs/{args.run_name}/epoch_{epoch}_fake_a_{i}.png")
-            save_image(real_a, f"runs/{args.run_name}/epoch_{epoch}_real_a_{i}.png")
-            save_image(fake_b, f"runs/{args.run_name}/epoch_{epoch}_fake_b_{i}.png")
-            save_image(real_b, f"runs/{args.run_name}/epoch_{epoch}_real_b_{i}.png")
 
 
 def main(args):
@@ -139,21 +66,77 @@ def main(args):
     for epoch in range(args.num_epochs):
         log("epoch", epoch + 1, "/", args.num_epochs)
 
-        train(
-            disc_a,
-            disc_b,
-            gen_a,
-            gen_b,
-            opt_disc_a,
-            opt_disc_b,
-            opt_gen_a,
-            opt_gen_b,
-            L1,
-            MSE,
-            data_loader,
-            args,
-            epoch,
-        )
+        tqdm_loop = tqdm(enumerate(data_loader), total=len(data_loader), leave=False)
+
+        for i, (real_a, real_b) in tqdm_loop:
+            real_a = real_a.to(args.device)
+            real_b = real_b.to(args.device)
+
+            # Discriminators
+            fake_b = gen_a(real_a)
+            disc_a_real = disc_a(real_a)
+            disc_a_fake = disc_a(fake_b.detach())
+
+            disc_a_loss = MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(
+                disc_a_fake, torch.zeros_like(disc_a_fake)
+            )
+
+            fake_a = gen_b(real_b)
+            disc_b_real = disc_a(real_b)
+            disc_b_fake = disc_a(fake_a.detach())
+
+            disc_b_loss = MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(
+                disc_b_fake, torch.zeros_like(disc_b_fake)
+            )
+
+            disc_loss = (
+                disc_a_loss + disc_b_loss
+            ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
+
+            # Usual stuff
+            opt_disc_a.zero_grad()
+            opt_disc_b.zero_grad()
+            disc_loss.backward()
+            opt_disc_a.step()
+            opt_disc_b.step()
+
+            # Generators
+            # Adversarial Loss
+            disc_a_fake = disc_a(fake_a)
+            disc_b_fake = disc_b(fake_b)
+            generator_loss_a = MSE(disc_a_fake, torch.ones_like(disc_a_fake))
+            generator_loss_b = MSE(disc_b_fake, torch.ones_like(disc_b_fake))
+
+            # Cycle Loss
+            cycle_a = gen_a(fake_b)
+            cycle_b = gen_b(fake_a)
+            cycle_a_loss = L1(real_a, cycle_a)
+            cycle_b_loss = L1(real_b, cycle_b)
+
+            # Identity Loss
+            identity_a = gen_a(real_a)
+            identity_b = gen_b(real_b)
+            identity_a_loss = L1(real_a, identity_a)
+            identity_b_loss = L1(real_b, identity_b)
+
+            gen_loss = (
+                generator_loss_a
+                + generator_loss_b
+                + cycle_a_loss * args.lambda_cycle
+                + cycle_b_loss * args.lambda_cycle
+                + identity_a_loss * args.lambda_identity
+                + identity_b_loss * args.lambda_identity
+            )
+
+            # Usual stuff
+            opt_gen_a.zero_grad()
+            opt_gen_b.zero_grad()
+            gen_loss.backward()
+            opt_gen_a.step()
+            opt_gen_b.step()
+
+            if i % 200 == 0:
+                save_combined_image(fake_a, real_a, fake_b, real_b, epoch, i, args.run_name)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
             # ...
