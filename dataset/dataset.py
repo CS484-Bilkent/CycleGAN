@@ -18,7 +18,7 @@ img_transform = transforms.Compose(
         transforms.ToTensor(),
         transforms.Resize(size=(256, 256)),
         transforms.RandomHorizontalFlip(p=0.5),
-        # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255),
+        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
         # TODO: try out normalization
         # transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], max_pixel_value=255),  # usual values
         # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # imagenet values

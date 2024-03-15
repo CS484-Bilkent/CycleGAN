@@ -65,20 +65,6 @@ def main(args):
         gen_a.load_state_dict(checkpoint["gen_a_state_dict"])
         gen_b.load_state_dict(checkpoint["gen_b_state_dict"])
 
-        # idk if these two are necessary, we can infer them from a and b losses
-        # disc_losses = checkpoint["disc_losses"]
-        # gen_losses = checkpoint["gen_losses"]
-
-        # disc_a_loss = checkpoint["disc_a_loss"]
-        # disc_b_loss = checkpoint["disc_b_loss"]
-        # generator_loss_a = checkpoint["gen_a_loss"]
-        # generator_loss_b = checkpoint["gen_b_loss"]
-
-        # device = args.device
-        # disc_a.to(device)
-        # disc_b.to(device)
-        # gen_a.to(device)
-        # gen_b.to(device)
         log("Loading Checkpoints - ", latest_checkpoint_path)
 
     disc_losses = deque(maxlen=1000)
@@ -178,10 +164,6 @@ def main(args):
                 "disc_b_state_dict": disc_b.state_dict(),
                 "gen_a_state_dict": gen_a.state_dict(),
                 "gen_b_state_dict": gen_b.state_dict(),
-                "disc_a_loss": disc_a_loss,
-                "disc_b_loss": disc_b_loss,
-                "gen_a_loss": generator_loss_a,
-                "gen_b_loss": generator_loss_b,
                 "disc_losses": disc_losses,
                 "gen_losses": gen_losses,
             }
