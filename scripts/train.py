@@ -15,6 +15,7 @@ from util.log import log
 from util.image import save_combined_image
 from util.plot import plot_loss
 from tqdm import tqdm
+import itertools
 from torch.utils.data import DataLoader
 from collections import deque
 
@@ -30,29 +31,35 @@ def main(args):
     gen_a = Generator(img_channels=3, num_residuals=9).to(args.device)  # RGB
     gen_b = Generator(img_channels=3, num_residuals=9).to(args.device)  # RGB
 
-    opt_disc_a = optim.Adam(
-        disc_a.parameters(),
-        lr=args.learning_rate,
-        # betas=(0.5, 0.999),
+    optimizer_G = torch.optim.Adam(
+        itertools.chain(gen_a.parameters(), gen_b.parameters()), lr=args.learning_rate, betas=(0.5, 0.999)
     )
+    optimizer_D_A = torch.optim.Adam(disc_a.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
+    optimizer_D_B = torch.optim.Adam(disc_b.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
-    opt_disc_b = optim.Adam(
-        disc_b.parameters(),
-        lr=args.learning_rate,
-        # betas=(0.5, 0.999),
-    )
+    # opt_disc_a = optim.Adam(
+    #     disc_a.parameters(),
+    #     lr=args.learning_rate,
+    #     # betas=(0.5, 0.999),
+    # )
 
-    opt_gen_a = optim.Adam(
-        gen_a.parameters(),
-        lr=args.learning_rate,
-        # betas=(0.5, 0.999),
-    )
+    # opt_disc_b = optim.Adam(
+    #     disc_b.parameters(),
+    #     lr=args.learning_rate,
+    #     # betas=(0.5, 0.999),
+    # )
 
-    opt_gen_b = optim.Adam(
-        gen_b.parameters(),
-        lr=args.learning_rate,
-        # betas=(0.5, 0.999),
-    )
+    # opt_gen_a = optim.Adam(
+    #     gen_a.parameters(),
+    #     lr=args.learning_rate,
+    #     # betas=(0.5, 0.999),
+    # )
+
+    # opt_gen_b = optim.Adam(
+    #     gen_b.parameters(),
+    #     lr=args.learning_rate,
+    #     # betas=(0.5, 0.999),
+    # )
 
     L1 = nn.L1Loss()
     MSE = nn.MSELoss()
@@ -77,22 +84,31 @@ def main(args):
             real_a = real_a.to(args.device)
             real_b = real_b.to(args.device)
 
-            # Discriminators
+            # Discriminator A
             fake_b = gen_a(real_a)
             disc_a_real = disc_a(real_a)
             disc_a_fake = disc_a(fake_b.detach())
 
-            disc_a_loss = MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(
-                disc_a_fake, torch.zeros_like(disc_a_fake)
+            disc_a_loss = (
+                MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake)) / 2
             )
 
+            optimizer_D_A.zero_grad()
+            disc_a_loss.backward()
+            optimizer_D_A.step()
+
+            # Discriminator B
             fake_a = gen_b(real_b)
-            disc_b_real = disc_a(real_b)
-            disc_b_fake = disc_a(fake_a.detach())
+            disc_b_real = disc_b(real_b)
+            disc_b_fake = disc_b(fake_a.detach())
 
-            disc_b_loss = MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(
-                disc_b_fake, torch.zeros_like(disc_b_fake)
+            disc_b_loss = (
+                MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake)) / 2
             )
+
+            optimizer_D_B.zero_grad()
+            disc_b_loss.backward()
+            optimizer_D_B.step()
 
             disc_loss = (
                 disc_a_loss + disc_b_loss
@@ -109,19 +125,20 @@ def main(args):
 
             disc_losses.append(disc_loss.item())
 
-            # Usual stuff
-            opt_disc_a.zero_grad()
-            opt_disc_b.zero_grad()
-            disc_loss.backward()
-            opt_disc_a.step()
-            opt_disc_b.step()
-
             # Generators
             # Adversarial Loss
-            disc_a_fake = disc_a(fake_a)
-            disc_b_fake = disc_b(fake_b)
-            generator_loss_a = MSE(disc_a_fake, torch.ones_like(disc_a_fake))
-            generator_loss_b = MSE(disc_b_fake, torch.ones_like(disc_b_fake))
+
+            # fake_B = netG_A2B(real_A)
+            # pred_fake = netD_B(fake_B)
+            # loss_GAN_A2B = criterion_GAN(pred_fake, target_real)
+
+            fake_a = gen_a(real_b)
+            pred_fake_a = disc_a(fake_a)
+            gen_loss_a = MSE(pred_fake_a, torch.ones_like(pred_fake_a))
+
+            fake_b = gen_b(real_a)
+            pred_fake_b = disc_b(fake_b)
+            gen_loss_b = MSE(pred_fake_b, torch.ones_like(pred_fake_b))
 
             # Cycle Loss
             cycle_a = gen_a(fake_b)
@@ -136,8 +153,8 @@ def main(args):
             identity_b_loss = L1(real_b, identity_b)
 
             gen_loss = (
-                generator_loss_a
-                + generator_loss_b
+                gen_loss_a
+                + gen_loss_b
                 + cycle_a_loss * args.lambda_cycle
                 + cycle_b_loss * args.lambda_cycle
                 + identity_a_loss * args.lambda_identity
@@ -164,11 +181,9 @@ def main(args):
             # )
 
             # Usual stuff
-            opt_gen_a.zero_grad()
-            opt_gen_b.zero_grad()
+            optimizer_G.zero_grad()
             gen_loss.backward()
-            opt_gen_a.step()
-            opt_gen_b.step()
+            optimizer_G.step()
 
             if i % 200 == 0:
                 save_combined_image(fake_a, real_a, fake_b, real_b, epoch, i, args.run_name)
