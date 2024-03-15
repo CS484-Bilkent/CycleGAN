@@ -58,12 +58,13 @@ def main(args):
             key=os.path.getctime,
         )
 
-        checkpoint = torch.load(latest_checkpoint_path)
+        if os.path.exists(latest_checkpoint_path):
+            checkpoint = torch.load(latest_checkpoint_path)
 
-        disc_a.load_state_dict(checkpoint["disc_a_state_dict"])
-        disc_b.load_state_dict(checkpoint["disc_b_state_dict"])
-        gen_a.load_state_dict(checkpoint["gen_a_state_dict"])
-        gen_b.load_state_dict(checkpoint["gen_b_state_dict"])
+            disc_a.load_state_dict(checkpoint["disc_a_state_dict"])
+            disc_b.load_state_dict(checkpoint["disc_b_state_dict"])
+            gen_a.load_state_dict(checkpoint["gen_a_state_dict"])
+            gen_b.load_state_dict(checkpoint["gen_b_state_dict"])
 
         log("Loading Checkpoints - ", latest_checkpoint_path)
 
@@ -153,23 +154,20 @@ def main(args):
                 plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{i}", args)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
-
             checkpoint_dir = "checkpoints"
 
             os.makedirs(checkpoint_dir, exist_ok=True)
 
-            checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch}.pth")
+            checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch + 1}.pth")
             checkpoint = {
                 "disc_a_state_dict": disc_a.state_dict(),
                 "disc_b_state_dict": disc_b.state_dict(),
                 "gen_a_state_dict": gen_a.state_dict(),
                 "gen_b_state_dict": gen_b.state_dict(),
-                "disc_losses": disc_losses,
-                "gen_losses": gen_losses,
             }
 
             torch.save(checkpoint, checkpoint_path)
-            log(f"Saving Checkpoint at epoch {epoch}: {checkpoint_path}")
+            log(f"Saving Checkpoint at epoch {epoch + 1}: {checkpoint_path}")
 
 
 if __name__ == "__main__":
