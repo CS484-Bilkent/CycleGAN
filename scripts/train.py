@@ -37,30 +37,6 @@ def main(args):
     optimizer_D_A = torch.optim.Adam(disc_a.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
     optimizer_D_B = torch.optim.Adam(disc_b.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
-    # opt_disc_a = optim.Adam(
-    #     disc_a.parameters(),
-    #     lr=args.learning_rate,
-    #     # betas=(0.5, 0.999),
-    # )
-
-    # opt_disc_b = optim.Adam(
-    #     disc_b.parameters(),
-    #     lr=args.learning_rate,
-    #     # betas=(0.5, 0.999),
-    # )
-
-    # opt_gen_a = optim.Adam(
-    #     gen_a.parameters(),
-    #     lr=args.learning_rate,
-    #     # betas=(0.5, 0.999),
-    # )
-
-    # opt_gen_b = optim.Adam(
-    #     gen_b.parameters(),
-    #     lr=args.learning_rate,
-    #     # betas=(0.5, 0.999),
-    # )
-
     L1 = nn.L1Loss()
     MSE = nn.MSELoss()
 
@@ -112,26 +88,27 @@ def main(args):
             real_b = real_b.to(args.device)
 
             # Discriminator A
-            fake_b = gen_a(real_a)
-            disc_a_real = disc_a(real_a)
-            disc_a_fake = disc_a(fake_b.detach())
+            with torch.cuda.amp.autocast():
+                fake_b = gen_a(real_a)
+                disc_a_real = disc_a(real_a)
+                disc_a_fake = disc_a(fake_b.detach())
 
-            disc_a_loss = (
-                MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake)) / 2
-            )
+                disc_a_loss = (
+                    MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
+                ) / 2
 
-            optimizer_D_A.zero_grad()
-            disc_a_loss.backward()
-            optimizer_D_A.step()
+                optimizer_D_A.zero_grad()
+                disc_a_loss.backward()
+                optimizer_D_A.step()
 
-            # Discriminator B
-            fake_a = gen_b(real_b)
-            disc_b_real = disc_b(real_b)
-            disc_b_fake = disc_b(fake_a.detach())
+                # Discriminator B
+                fake_a = gen_b(real_b)
+                disc_b_real = disc_b(real_b)
+                disc_b_fake = disc_b(fake_a.detach())
 
-            disc_b_loss = (
-                MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake)) / 2
-            )
+                disc_b_loss = (
+                    MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
+                ) / 2
 
             optimizer_D_B.zero_grad()
             disc_b_loss.backward()
@@ -141,71 +118,41 @@ def main(args):
                 disc_a_loss + disc_b_loss
             ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
 
-            # log(
-            #     "\rDiscriminator A Loss",
-            #     disc_a_loss.item(),
-            #     "Discriminator B Loss",
-            #     disc_b_loss.item(),
-            #     "Discriminator Loss:",
-            #     disc_loss.item(),
-            # )
-
             disc_losses.append(disc_loss.item())
 
-            # Generators
-            # Adversarial Loss
+            with torch.cuda.amp.autocast():
+                # Generators
+                # Adversarial Loss
+                fake_a = gen_a(real_b)
+                pred_fake_a = disc_a(fake_a)
+                gen_loss_a = MSE(pred_fake_a, torch.ones_like(pred_fake_a))
 
-            # fake_B = netG_A2B(real_A)
-            # pred_fake = netD_B(fake_B)
-            # loss_GAN_A2B = criterion_GAN(pred_fake, target_real)
+                fake_b = gen_b(real_a)
+                pred_fake_b = disc_b(fake_b)
+                gen_loss_b = MSE(pred_fake_b, torch.ones_like(pred_fake_b))
 
-            fake_a = gen_a(real_b)
-            pred_fake_a = disc_a(fake_a)
-            gen_loss_a = MSE(pred_fake_a, torch.ones_like(pred_fake_a))
+                # Cycle Loss
+                cycle_a = gen_a(fake_b)
+                cycle_b = gen_b(fake_a)
+                cycle_a_loss = L1(real_a, cycle_a)
+                cycle_b_loss = L1(real_b, cycle_b)
 
-            fake_b = gen_b(real_a)
-            pred_fake_b = disc_b(fake_b)
-            gen_loss_b = MSE(pred_fake_b, torch.ones_like(pred_fake_b))
+                # Identity Loss
+                identity_a = gen_a(real_a)
+                identity_b = gen_b(real_b)
+                identity_a_loss = L1(real_a, identity_a)
+                identity_b_loss = L1(real_b, identity_b)
 
-            # Cycle Loss
-            cycle_a = gen_a(fake_b)
-            cycle_b = gen_b(fake_a)
-            cycle_a_loss = L1(real_a, cycle_a)
-            cycle_b_loss = L1(real_b, cycle_b)
-
-            # Identity Loss
-            identity_a = gen_a(real_a)
-            identity_b = gen_b(real_b)
-            identity_a_loss = L1(real_a, identity_a)
-            identity_b_loss = L1(real_b, identity_b)
-
-            gen_loss = (
-                gen_loss_a
-                + gen_loss_b
-                + cycle_a_loss * args.lambda_cycle
-                + cycle_b_loss * args.lambda_cycle
-                + identity_a_loss * args.lambda_identity
-                + identity_b_loss * args.lambda_identity
-            )
+                gen_loss = (
+                    gen_loss_a
+                    + gen_loss_b
+                    + cycle_a_loss * args.lambda_cycle
+                    + cycle_b_loss * args.lambda_cycle
+                    + identity_a_loss * args.lambda_identity
+                    + identity_b_loss * args.lambda_identity
+                )
 
             gen_losses.append(gen_loss.item())
-
-            # log(
-            #     "Generator A Loss",
-            #     generator_loss_a.item(),
-            #     "Generator B Loss",
-            #     generator_loss_b.item(),
-            #     "Cycle A Loss",
-            #     cycle_a_loss.item(),
-            #     "Cycle B Loss",
-            #     cycle_b_loss.item(),
-            #     "Identity A Loss",
-            #     identity_a_loss.item(),
-            #     "Identity B Loss",
-            #     identity_b_loss.item(),
-            #     "Generator Loss:",
-            #     gen_loss.item(),
-            # )
 
             # Usual stuff
             optimizer_G.zero_grad()
