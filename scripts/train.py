@@ -34,8 +34,13 @@ def main(args):
     optimizer_G = torch.optim.Adam(
         itertools.chain(gen_a.parameters(), gen_b.parameters()), lr=args.learning_rate, betas=(0.5, 0.999)
     )
-    optimizer_D_A = torch.optim.Adam(disc_a.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
-    optimizer_D_B = torch.optim.Adam(disc_b.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
+    optimizer_D = torch.optim.Adam(
+        itertools.chain(disc_a.parameters(), disc_b.parameters()), lr=args.learning_rate, betas=(0.5, 0.999)
+    )
+
+    # Taken from their code
+    G_scaler = torch.cuda.amp.GradScaler()
+    D_scaler = torch.cuda.amp.GradScaler()
 
     L1 = nn.L1Loss()
     MSE = nn.MSELoss()
@@ -61,23 +66,23 @@ def main(args):
         gen_b.load_state_dict(checkpoint["gen_b_state_dict"])
 
         # idk if these two are necessary, we can infer them from a and b losses
-        disc_losses = checkpoint["disc_losses"]
-        gen_losses = checkpoint["gen_losses"]
+        # disc_losses = checkpoint["disc_losses"]
+        # gen_losses = checkpoint["gen_losses"]
 
-        disc_a_loss = checkpoint["disc_a_loss"]
-        disc_b_loss = checkpoint["disc_b_loss"]
-        generator_loss_a = checkpoint["gen_a_loss"]
-        generator_loss_b = checkpoint["gen_b_loss"]
+        # disc_a_loss = checkpoint["disc_a_loss"]
+        # disc_b_loss = checkpoint["disc_b_loss"]
+        # generator_loss_a = checkpoint["gen_a_loss"]
+        # generator_loss_b = checkpoint["gen_b_loss"]
 
-        device = args.device
-        disc_a.to(device)
-        disc_b.to(device)
-        gen_a.to(device)
-        gen_b.to(device)
+        # device = args.device
+        # disc_a.to(device)
+        # disc_b.to(device)
+        # gen_a.to(device)
+        # gen_b.to(device)
         log("Loading Checkpoints - ", latest_checkpoint_path)
 
-    disc_losses = deque(maxlen=200)
-    gen_losses = deque(maxlen=200)
+    disc_losses = deque(maxlen=1000)
+    gen_losses = deque(maxlen=1000)
     for epoch in range(args.num_epochs):
         log("epoch", epoch + 1, "/", args.num_epochs)
 
@@ -87,79 +92,77 @@ def main(args):
             real_a = real_a.to(args.device)
             real_b = real_b.to(args.device)
 
-            # Discriminator A
-            with torch.cuda.amp.autocast():
-                fake_b = gen_a(real_a)
-                disc_a_real = disc_a(real_a)
-                disc_a_fake = disc_a(fake_b.detach())
-
-                disc_a_loss = (
-                    MSE(disc_a_real, torch.ones_like(disc_a_real)) + MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
-                ) / 2
-
-                optimizer_D_A.zero_grad()
-                disc_a_loss.backward()
-                optimizer_D_A.step()
-
+            with torch.cuda.amp.autocast():  # F16 Training?
                 # Discriminator B
-                fake_a = gen_b(real_b)
+                fake_b = gen_b(real_a)
                 disc_b_real = disc_b(real_b)
-                disc_b_fake = disc_b(fake_a.detach())
+                disc_b_fake = disc_b(fake_b.detach())
 
-                disc_b_loss = (
-                    MSE(disc_b_real, torch.ones_like(disc_b_real)) + MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
-                ) / 2
+                disc_b_real_loss = MSE(disc_b_real, torch.ones_like(disc_b_real))
+                disc_b_fake_loss = MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
 
-            optimizer_D_B.zero_grad()
-            disc_b_loss.backward()
-            optimizer_D_B.step()
+                disc_b_loss = disc_b_real_loss + disc_b_fake_loss
 
-            disc_loss = (
-                disc_a_loss + disc_b_loss
-            ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
+                # Discriminator A
+                fake_a = gen_a(real_b)
+                disc_a_real = disc_a(real_a)
+                disc_a_fake = disc_a(fake_a.detach())
 
-            disc_losses.append(disc_loss.item())
+                disc_a_real_loss = MSE(disc_a_real, torch.ones_like(disc_a_real))
+                disc_a_fake_loss = MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
+
+                disc_a_loss = disc_a_real_loss + disc_a_fake_loss
+
+                disc_loss = (
+                    disc_a_loss + disc_b_loss
+                ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
+
+                disc_losses.append(disc_loss.item())
+
+                optimizer_D.zero_grad()
+                D_scaler.scale(disc_loss).backward()
+                D_scaler.step(optimizer_D)
+                D_scaler.update()
 
             with torch.cuda.amp.autocast():
                 # Generators
-                # Adversarial Loss
-                fake_a = gen_a(real_b)
-                pred_fake_a = disc_a(fake_a)
-                gen_loss_a = MSE(pred_fake_a, torch.ones_like(pred_fake_a))
 
-                fake_b = gen_b(real_a)
-                pred_fake_b = disc_b(fake_b)
-                gen_loss_b = MSE(pred_fake_b, torch.ones_like(pred_fake_b))
+                # Adversarial Loss
+                disc_b_fake = disc_b(fake_b)
+                disc_a_fake = disc_a(fake_a)
+                gen_loss_a = MSE(disc_a_fake, torch.ones_like(disc_a_fake))
+                gen_loss_b = MSE(disc_b_fake, torch.ones_like(disc_b_fake))
 
                 # Cycle Loss
                 cycle_a = gen_a(fake_b)
                 cycle_b = gen_b(fake_a)
-                cycle_a_loss = L1(real_a, cycle_a)
-                cycle_b_loss = L1(real_b, cycle_b)
+                cycle_loss_a = L1(real_a, cycle_a)
+                cycle_loss_b = L1(real_b, cycle_b)
 
                 # Identity Loss
                 identity_a = gen_a(real_a)
                 identity_b = gen_b(real_b)
-                identity_a_loss = L1(real_a, identity_a)
-                identity_b_loss = L1(real_b, identity_b)
+                identity_loss_a = L1(real_a, identity_a)
+                identity_loss_b = L1(real_b, identity_b)
 
                 gen_loss = (
                     gen_loss_a
                     + gen_loss_b
-                    + cycle_a_loss * args.lambda_cycle
-                    + cycle_b_loss * args.lambda_cycle
-                    + identity_a_loss * args.lambda_identity
-                    + identity_b_loss * args.lambda_identity
+                    + cycle_loss_a * args.lambda_cycle
+                    + cycle_loss_b * args.lambda_cycle
+                    + identity_loss_a * args.lambda_identity
+                    + identity_loss_b * args.lambda_identity
                 )
 
-            gen_losses.append(gen_loss.item())
+                gen_losses.append(gen_loss.item())
 
-            # Usual stuff
-            optimizer_G.zero_grad()
-            gen_loss.backward()
-            optimizer_G.step()
+                # Usual stuff
+                optimizer_G.zero_grad()
+                G_scaler.scale(gen_loss).backward()
+                G_scaler.step(optimizer_G)
+                G_scaler.update()
 
-            if i % 200 == 0:
+            if i % 100 == 0:
                 save_combined_image(fake_a, real_a, fake_b, real_b, epoch, i, args.run_name)
                 plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{i}", args)
 
