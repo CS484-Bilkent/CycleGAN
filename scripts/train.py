@@ -68,41 +68,37 @@ def main(args):
     dataset = ABDataset(root_a=args.train_dir + "/trainA", root_b=args.train_dir + "/trainB", transform=transform)
     data_loader = DataLoader(dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle=True)
 
-    #maybe we can add an argument to specify checkpoint idk
+    # maybe we can add an argument to specify checkpoint idk
     if args.load_checkpoints:
         checkpoint_dir = "checkpoints"
 
         latest_checkpoint_path = max(
             [os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if f.startswith("checkpoint_epoch_")],
-            key=os.path.getctime
+            key=os.path.getctime,
         )
 
         checkpoint = torch.load(latest_checkpoint_path)
 
-        disc_a.load_state_dict(checkpoint['disc_a_state_dict'])
-        disc_b.load_state_dict(checkpoint['disc_b_state_dict'])
-        gen_a.load_state_dict(checkpoint['gen_a_state_dict'])
-        gen_b.load_state_dict(checkpoint['gen_b_state_dict'])
-        opt_disc_a.load_state_dict(checkpoint['opt_disc_a_state_dict'])
-        opt_disc_b.load_state_dict(checkpoint['opt_disc_b_state_dict'])
-        opt_gen_a.load_state_dict(checkpoint['opt_gen_a_state_dict'])
-        opt_gen_b.load_state_dict(checkpoint['opt_gen_b_state_dict'])
+        disc_a.load_state_dict(checkpoint["disc_a_state_dict"])
+        disc_b.load_state_dict(checkpoint["disc_b_state_dict"])
+        gen_a.load_state_dict(checkpoint["gen_a_state_dict"])
+        gen_b.load_state_dict(checkpoint["gen_b_state_dict"])
 
         # idk if these two are necessary, we can infer them from a and b losses
-        disc_losses = checkpoint['disc_losses']
-        gen_losses = checkpoint['gen_losses']
-        
-        disc_a_loss = checkpoint['disc_a_loss']
-        disc_b_loss = checkpoint['disc_b_loss']
-        generator_loss_a = checkpoint['gen_a_loss']
-        generator_loss_b = checkpoint['gen_b_loss']
+        disc_losses = checkpoint["disc_losses"]
+        gen_losses = checkpoint["gen_losses"]
+
+        disc_a_loss = checkpoint["disc_a_loss"]
+        disc_b_loss = checkpoint["disc_b_loss"]
+        generator_loss_a = checkpoint["gen_a_loss"]
+        generator_loss_b = checkpoint["gen_b_loss"]
 
         device = args.device
         disc_a.to(device)
         disc_b.to(device)
         gen_a.to(device)
         gen_b.to(device)
-        log("Loading Checkpoints - ",latest_checkpoint_path)
+        log("Loading Checkpoints - ", latest_checkpoint_path)
 
     disc_losses = deque(maxlen=200)
     gen_losses = deque(maxlen=200)
@@ -221,27 +217,23 @@ def main(args):
                 plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{i}", args)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
-            
+
             checkpoint_dir = "checkpoints"
 
             os.makedirs(checkpoint_dir, exist_ok=True)
-            
+
             checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch}.pth")
             checkpoint = {
-                'disc_a_state_dict': disc_a.state_dict(),
-                'disc_b_state_dict': disc_b.state_dict(),
-                'gen_a_state_dict': gen_a.state_dict(),
-                'gen_b_state_dict': gen_b.state_dict(),
-                'opt_disc_a_state_dict': opt_disc_a.state_dict(),
-                'opt_disc_b_state_dict': opt_disc_b.state_dict(),
-                'opt_gen_a_state_dict': opt_gen_a.state_dict(),
-                'opt_gen_b_state_dict': opt_gen_b.state_dict(),
-                'disc_a_loss': disc_a_loss,
-                'disc_b_loss': disc_b_loss,
-                'gen_a_loss': generator_loss_a,
-                'gen_b_loss': generator_loss_b,
-                'disc_losses': disc_losses,
-                'gen_losses': gen_losses,
+                "disc_a_state_dict": disc_a.state_dict(),
+                "disc_b_state_dict": disc_b.state_dict(),
+                "gen_a_state_dict": gen_a.state_dict(),
+                "gen_b_state_dict": gen_b.state_dict(),
+                "disc_a_loss": disc_a_loss,
+                "disc_b_loss": disc_b_loss,
+                "gen_a_loss": generator_loss_a,
+                "gen_b_loss": generator_loss_b,
+                "disc_losses": disc_losses,
+                "gen_losses": gen_losses,
             }
 
             torch.save(checkpoint, checkpoint_path)
