@@ -150,7 +150,7 @@ def main(args):
                 G_scaler.update()
 
             if i % 100 == 0:
-                save_combined_image(gen_a(real_a), real_a, gen_b(real_b), real_b, epoch, i, args.run_name)
+                save_combined_image(gen_b(real_a), real_a, gen_a(real_b), real_b, epoch, i, args.run_name)
                 plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{i}", args)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
