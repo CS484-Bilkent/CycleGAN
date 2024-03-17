@@ -1,6 +1,10 @@
 import os
-import argparse
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+
 import torch
+from config.args import parser
+from util.log import log
 from models.generator import Generator
 from models.discriminator import Discriminator
 from dataset.dataset import ABDataset
@@ -57,7 +61,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Perform image translation using CycleGAN.")
-    parser.add_argument("--checkpoint", type=str, help="Path to the checkpoint file.")
     args = parser.parse_args()
+    log("Using args:", args)
     main(args)
