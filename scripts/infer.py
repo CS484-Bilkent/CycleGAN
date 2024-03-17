@@ -42,7 +42,7 @@ def main(args):
     discriminator_A.eval()
     discriminator_B.eval()
 
-    dataset = ABDataset(root_a=args.train_dir + "/testA", root_b=args.train_dir + "/testB", transform=transform)
+    dataset = ABDataset(root_a=args.test_dir + "/testA", root_b=args.test_dir + "/testB", transform=transform)
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
     for i,batch in enumerate(data_loader):
         real_a, real_b = batch['A'], batch['B']
