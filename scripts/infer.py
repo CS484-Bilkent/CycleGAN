@@ -12,8 +12,7 @@ from dataset.dataset import img_transform as transform
 from config.args import parser
 from torch.utils.data import DataLoader
 from util.image import save_combined_image
-
-
+from tqdm import tqdm
 
 def load_latest_checkpoint(checkpoints_dir):
     checkpoints = [file for file in os.listdir(checkpoints_dir) if file.startswith("checkpoint_epoch")]
@@ -33,10 +32,10 @@ def main(args):
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path)
 
-        generator_A.load_state_dict(checkpoint["generator_A_state_dict"])
-        generator_B.load_state_dict(checkpoint["generator_B_state_dict"])
-        discriminator_A.load_state_dict(checkpoint["discriminator_A_state_dict"])
-        discriminator_B.load_state_dict(checkpoint["discriminator_B_state_dict"])
+        generator_A.load_state_dict(checkpoint["gen_a_state_dict"])
+        generator_B.load_state_dict(checkpoint["gen_b_state_dict"])
+        discriminator_A.load_state_dict(checkpoint["disc_a_state_dict"])
+        discriminator_B.load_state_dict(checkpoint["disc_b_state_dict"])
 
     else:
         raise FileNotFoundError(f"Checkpoint file '{checkpoint_path}' not found.")
@@ -48,9 +47,11 @@ def main(args):
 
     dataset = ABDataset(root_a=args.test_dir + "/testA", root_b=args.test_dir + "/testB", transform=transform)
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
-    for i,batch in enumerate(data_loader):
-        real_a, real_b = batch['A'], batch['B']
+    tqdm_loop = tqdm(enumerate(data_loader), total=len(data_loader), leave=False)
 
+    for i,(real_a,real_b) in enumerate(tqdm_loop):
+        real_a = real_a.to(args.device)
+        real_b = real_b.to(args.device)
         fake_b = generator_B(real_a)
         fake_a = generator_A(real_b)
         save_combined_image(fake_b, real_a, fake_a, real_b, 0, i, "test")
@@ -61,6 +62,8 @@ def main(args):
 
 
 if __name__ == "__main__":
+    parser.add_argument("--checkpoint", type=str)
+    parser.add_argument("--test_limit", type=int,required=False)
     args = parser.parse_args()
     log("Using args:", args)
     main(args)
