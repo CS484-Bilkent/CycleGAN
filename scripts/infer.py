@@ -49,12 +49,12 @@ def main(args):
     data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
     tqdm_loop = tqdm(enumerate(data_loader), total=len(data_loader), leave=False)
 
-    for i,(real_a,real_b) in enumerate(tqdm_loop):
+    for i,(real_a,real_b) in tqdm_loop:
         real_a = real_a.to(args.device)
         real_b = real_b.to(args.device)
         fake_b = generator_B(real_a)
         fake_a = generator_A(real_b)
-        save_combined_image(fake_b, real_a, fake_a, real_b, 0, i, "test")
+        save_combined_image(fake_b, real_a, fake_a, real_b, 0, i, f"test/{args.run_name}")
 
         if args.test_limit and i > args.test_limit:
             break
@@ -65,5 +65,6 @@ if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str)
     parser.add_argument("--test_limit", type=int,required=False)
     args = parser.parse_args()
+    os.makedirs(f"runs/test/{args.run_name}", exist_ok=True)
     log("Using args:", args)
     main(args)
