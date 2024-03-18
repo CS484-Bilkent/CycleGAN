@@ -38,7 +38,7 @@ def main(args):
     discriminator_B = Discriminator(in_channels=3).to(args.device)
 
     if os.path.exists(checkpoint_path):
-        checkpoint = torch.load(checkpoint_path)
+        checkpoint = torch.load(checkpoint_path, map_location=args.device)
 
         generator_A.load_state_dict(checkpoint["gen_a_state_dict"])
         generator_B.load_state_dict(checkpoint["gen_b_state_dict"])
