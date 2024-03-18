@@ -16,16 +16,21 @@ from util.image import save_combined_image
 from tqdm import tqdm
 
 
-def load_latest_checkpoint(checkpoints_dir):
+def load_latest_checkpoint(checkpoints_dir, checkpoint_name=None):
+
+    if checkpoint_name:
+        return os.path.join(checkpoints_dir, checkpoint_name)
+
     checkpoints = [file for file in os.listdir(checkpoints_dir) if file.startswith("checkpoint_epoch")]
     if not checkpoints:
         raise FileNotFoundError("No checkpoints found in the directory.")
     latest_checkpoint = max(checkpoints, key=lambda x: int(x.split("_")[2].split(".")[0]))
+
     return os.path.join(checkpoints_dir, latest_checkpoint)
 
 
 def main(args):
-    checkpoint_path = args.checkpoint if args.checkpoint else load_latest_checkpoint(args.checkpoint_path)
+    checkpoint_path = load_latest_checkpoint(args.checkpoints_dir, args.checkpoint)
 
     generator_A = Generator(img_channels=3, num_residuals=9).to(args.device)
     generator_B = Generator(img_channels=3, num_residuals=9).to(args.device)
@@ -65,7 +70,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str)
-    parser.add_argument("--checkpoint-path", type=str, default="checkpoints")
+    parser.add_argument("--checkpoint-dir", type=str, default="checkpoints")
     parser.add_argument("--test_limit", type=int, required=False)
 
     args = parser.parse_args()
