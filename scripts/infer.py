@@ -70,7 +70,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser.add_argument("--checkpoint", type=str)
-    parser.add_argument("--checkpoint-dir", type=str, default="checkpoints")
+    parser.add_argument("--checkpoints-dir", type=str, default="checkpoints")
     parser.add_argument("--test_limit", type=int, required=False)
 
     args = parser.parse_args()
