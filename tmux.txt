@@ -1,0 +1,11 @@
+tmux new-session -s cyclegan_horse2zebra
+tmux attach-session -t cyclegan_horse2zebra
+
+tmux kill-session -t cyclegan_horse2zebra
+
+-----
+
+tmux new-session -s cyclegan_apple2orange
+tmux attach-session -t cyclegan_apple2orange
+
+tmux kill-session -t cyclegan_apple2orange

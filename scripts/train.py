@@ -1,3 +1,5 @@
+
+
 import os
 import sys
 
@@ -24,23 +26,38 @@ import torch.nn as nn
 from torch import optim
 
 
+"""
+Horse => A
+Zebra => B
+"""
+
 def main(args):
-    disc_a = Discriminator(in_channels=3).to(args.device)  # RGB
-    disc_b = Discriminator(in_channels=3).to(args.device)  # RGB
+    disc_B = Discriminator(in_channels=3).to(args.device)
+    disc_A = Discriminator(in_channels=3).to(args.device)
 
-    gen_a = Generator(img_channels=3, num_residuals=9).to(args.device)  # RGB
-    gen_b = Generator(img_channels=3, num_residuals=9).to(args.device)  # RGB
+    gen_B = Generator(img_channels=3, num_residuals=9).to(args.device)
+    gen_A = Generator(img_channels=3, num_residuals=9).to(args.device)
 
-    optimizer_G = torch.optim.Adam(
-        itertools.chain(gen_a.parameters(), gen_b.parameters()), lr=args.learning_rate, betas=(0.5, 0.999)
+    opt_disc_A = optim.Adam(
+        disc_A.parameters(),
+        lr=args.learning_rate,
+        betas=(0.5, 0.999),
     )
-    optimizer_D = torch.optim.Adam(
-        itertools.chain(disc_a.parameters(), disc_b.parameters()), lr=args.learning_rate, betas=(0.5, 0.999)
+
+    opt_disc_B = optim.Adam(
+        disc_B.parameters(),
+        lr=args.learning_rate,
+        betas=(0.5, 0.999),
+    )
+
+    opt_gen = optim.Adam(
+        itertools.chain(gen_A.parameters(), gen_B.parameters()), lr=args.learning_rate, betas=(0.5, 0.999)
     )
 
     # Taken from their code
-    G_scaler = torch.cuda.amp.GradScaler()
-    D_scaler = torch.cuda.amp.GradScaler()
+    g_scaler = torch.cuda.amp.GradScaler()
+    d_A_scaler = torch.cuda.amp.GradScaler()
+    d_B_scaler = torch.cuda.amp.GradScaler()
 
     L1 = nn.L1Loss()
     MSE = nn.MSELoss()
@@ -51,7 +68,7 @@ def main(args):
 
     # maybe we can add an argument to specify checkpoint idk
     if args.load_checkpoints:
-        checkpoint_dir = "checkpoints"
+        checkpoint_dir = args.load_checkpoints_path
 
         latest_checkpoint_path = max(
             [os.path.join(checkpoint_dir, f) for f in os.listdir(checkpoint_dir) if f.startswith("checkpoint_epoch_")],
@@ -61,109 +78,113 @@ def main(args):
         if os.path.exists(latest_checkpoint_path):
             checkpoint = torch.load(latest_checkpoint_path)
 
-            disc_a.load_state_dict(checkpoint["disc_a_state_dict"])
-            disc_b.load_state_dict(checkpoint["disc_b_state_dict"])
-            gen_a.load_state_dict(checkpoint["gen_a_state_dict"])
-            gen_b.load_state_dict(checkpoint["gen_b_state_dict"])
+            disc_A.load_state_dict(checkpoint["disc_a_state_dict"])
+            disc_B.load_state_dict(checkpoint["disc_b_state_dict"])
+            gen_A.load_state_dict(checkpoint["gen_a_state_dict"])
+            gen_B.load_state_dict(checkpoint["gen_b_state_dict"])
 
         log("Loading Checkpoints - ", latest_checkpoint_path)
 
     disc_losses = deque(maxlen=1000)
     gen_losses = deque(maxlen=1000)
+
+
     for epoch in range(args.num_epochs):
         log("epoch", epoch + 1, "/", args.num_epochs)
 
-        tqdm_loop = tqdm(enumerate(data_loader), total=len(data_loader), leave=False)
+        tqdm_loop = tqdm(data_loader, total=len(data_loader), leave=False)
 
-        for i, (real_a, real_b) in tqdm_loop:
-            real_a = real_a.to(args.device)
-            real_b = real_b.to(args.device)
+        for idx, (A, B) in enumerate(tqdm_loop):
+            B = B.to(args.device)
+            A = A.to(args.device)
 
-            with torch.cuda.amp.autocast():  # F16 Training?
-                # Discriminator B
-                fake_b = gen_b(real_a)
-                disc_b_real = disc_b(real_b)
-                disc_b_fake = disc_b(fake_b.detach())
-
-                disc_b_real_loss = MSE(disc_b_real, torch.ones_like(disc_b_real))
-                disc_b_fake_loss = MSE(disc_b_fake, torch.zeros_like(disc_b_fake))
-
-                disc_b_loss = disc_b_real_loss + disc_b_fake_loss
-
-                # Discriminator A
-                fake_a = gen_a(real_b)
-                disc_a_real = disc_a(real_a)
-                disc_a_fake = disc_a(fake_a.detach())
-
-                disc_a_real_loss = MSE(disc_a_real, torch.ones_like(disc_a_real))
-                disc_a_fake_loss = MSE(disc_a_fake, torch.zeros_like(disc_a_fake))
-
-                disc_a_loss = disc_a_real_loss + disc_a_fake_loss
-
-                disc_loss = (
-                    disc_a_loss + disc_b_loss
-                ) / 2  # total loss here (paper mentions /2, so I just use it). Though in theory, it should give the same result without /2.
-
-                disc_losses.append(disc_loss.item())
-
-                optimizer_D.zero_grad()
-                D_scaler.scale(disc_loss).backward()
-                D_scaler.step(optimizer_D)
-                D_scaler.update()
-
+            # Train Discriminators H and Z
             with torch.cuda.amp.autocast():
-                # Generators
+                fake_A = gen_A(B)
+                D_A_real = disc_A(A)
+                D_A_fake = disc_A(fake_A.detach())
+                D_A_real_loss = MSE(D_A_real, torch.ones_like(D_A_real))
+                D_A_fake_loss = MSE(D_A_fake, torch.zeros_like(D_A_fake))
+                D_A_loss = D_A_real_loss + D_A_fake_loss
 
-                # Adversarial Loss
-                disc_b_fake = disc_b(fake_b)
-                disc_a_fake = disc_a(fake_a)
-                gen_loss_a = MSE(disc_a_fake, torch.ones_like(disc_a_fake))
-                gen_loss_b = MSE(disc_b_fake, torch.ones_like(disc_b_fake))
+                fake_B = gen_B(A)
+                D_B_real = disc_B(B)
+                D_B_fake = disc_B(fake_B.detach())
+                D_B_real_loss = MSE(D_B_real, torch.ones_like(D_B_real))
+                D_B_fake_loss = MSE(D_B_fake, torch.zeros_like(D_B_fake))
+                D_B_loss = D_B_real_loss + D_B_fake_loss
 
-                # Cycle Loss
-                cycle_a = gen_a(fake_b)
-                cycle_b = gen_b(fake_a)
-                cycle_loss_a = L1(real_a, cycle_a)
-                cycle_loss_b = L1(real_b, cycle_b)
+                # put it togethor
+                D_loss = (D_A_loss + D_B_loss) / 2
 
-                # Identity Loss
-                identity_a = gen_a(real_a)
-                identity_b = gen_b(real_b)
-                identity_loss_a = L1(real_a, identity_a)
-                identity_loss_b = L1(real_b, identity_b)
+                disc_losses.append(D_loss.item())
 
-                gen_loss = (
-                    gen_loss_a
-                    + gen_loss_b
-                    + cycle_loss_a * args.lambda_cycle
-                    + cycle_loss_b * args.lambda_cycle
-                    + identity_loss_a * args.lambda_identity
-                    + identity_loss_b * args.lambda_identity
+            opt_disc_A.zero_grad()
+            d_A_scaler.scale(D_A_loss).backward()
+            d_A_scaler.step(opt_disc_A)
+            d_A_scaler.update()
+
+            opt_disc_B.zero_grad()
+            d_B_scaler.scale(D_B_loss).backward()
+            d_B_scaler.step(opt_disc_B)
+            d_B_scaler.update()
+
+            # Train Generators H and Z
+            with torch.cuda.amp.autocast():
+                # adversarial loss for both generators
+                D_A_fake = disc_A(fake_A)
+                D_Z_fake = disc_B(fake_B)
+                loss_G_A = MSE(D_A_fake, torch.ones_like(D_A_fake))
+                loss_G_Z = MSE(D_Z_fake, torch.ones_like(D_Z_fake))
+
+                # cycle loss
+                cycle_B = gen_B(fake_A)
+                cycle_A = gen_A(fake_B)
+                cycle_B_loss = L1(B, cycle_B)
+                cycle_A_loss = L1(A, cycle_A)
+
+                identity_B = gen_B(B)
+                identity_A = gen_A(A)
+                identity_B_loss = L1(B, identity_B)
+                identity_A_loss = L1(A, identity_A)
+
+                # add all togethor
+                G_loss = (
+                    loss_G_Z
+                    + loss_G_A
+                    + cycle_B_loss * args.lambda_cycle
+                    + cycle_A_loss * args.lambda_cycle
+                    + identity_A_loss * args.lambda_identity
+                    + identity_B_loss * args.lambda_identity
                 )
+                
+                gen_losses.append(G_loss.item())
 
-                gen_losses.append(gen_loss.item())
+            opt_gen.zero_grad()
+            g_scaler.scale(G_loss).backward()
+            g_scaler.step(opt_gen)
+            g_scaler.update()
 
-                # Usual stuff
-                optimizer_G.zero_grad()
-                G_scaler.scale(gen_loss).backward()
-                G_scaler.step(optimizer_G)
-                G_scaler.update()
-
-            if i % 100 == 0:
-                save_combined_image(gen_b(real_a), real_a, gen_a(real_b), real_b, epoch, i, args.run_name)
-                plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{i}", args)
+            if idx % 500 == 0 or idx == len(tqdm_loop) - 1:
+                save_combined_image(
+                    fake_A * 0.5 + 0.5,  # Denormalize
+                    B * 0.5 + 0.5,  # Denormalize
+                    fake_B * 0.5 + 0.5,  # Denormalize
+                    A * 0.5 + 0.5,  # Denormalize
+                    epoch,
+                    idx,
+                    args.run_name,
+                )
+                plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{idx}", args)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
-            checkpoint_dir = "checkpoints"
 
-            os.makedirs(checkpoint_dir, exist_ok=True)
-
-            checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_epoch_{epoch + 1}.pth")
+            checkpoint_path = os.path.join(f"checkpoints/{args.run_name}", f"checkpoint_epoch_{epoch + 1}.pth")
             checkpoint = {
-                "disc_a_state_dict": disc_a.state_dict(),
-                "disc_b_state_dict": disc_b.state_dict(),
-                "gen_a_state_dict": gen_a.state_dict(),
-                "gen_b_state_dict": gen_b.state_dict(),
+                "disc_a_state_dict": disc_A.state_dict(),
+                "disc_b_state_dict": disc_B.state_dict(),
+                "gen_a_state_dict": gen_A.state_dict(),
+                "gen_b_state_dict": gen_B.state_dict(),
             }
 
             torch.save(checkpoint, checkpoint_path)
@@ -176,4 +197,5 @@ if __name__ == "__main__":
     log("Using args:", args)
     os.makedirs(f"runs/{args.run_name}", exist_ok=False)
     os.makedirs(f"results/{args.run_name}", exist_ok=False)
+    os.makedirs(f"checkpoints/{args.run_name}", exist_ok=True)
     main(args)
