@@ -24,16 +24,6 @@ import torch.nn as nn
 from torch import optim
 
 
-def linear_decay(epoch):
-    if epoch < 100:
-        return 1
-    elif epoch < 200:
-        return 1 - (epoch - 100) / 100
-    else:
-        print("Kill the training, weights are not updated after 200 epochs.")
-        return 0  # Keep the learning rate at 0 after 200 epochs
-
-
 """
 Horse => A
 Zebra => B
@@ -67,15 +57,6 @@ def main(args):
     g_scaler = torch.cuda.amp.GradScaler()
     d_A_scaler = torch.cuda.amp.GradScaler()
     d_B_scaler = torch.cuda.amp.GradScaler()
-
-    # Update LR
-    g_scheduler = optim.lr_scheduler.LambdaLR(opt_gen, lr_lambda=lambda epoch: linear_decay(epoch) * args.learning_rate)
-    d_A_scheduler = optim.lr_scheduler.LambdaLR(
-        opt_disc_A, lr_lambda=lambda epoch: linear_decay(epoch) * args.learning_rate
-    )
-    d_B_scheduler = optim.lr_scheduler.LambdaLR(
-        opt_disc_B, lr_lambda=lambda epoch: linear_decay(epoch) * args.learning_rate
-    )
 
     L1 = nn.L1Loss()
     MSE = nn.MSELoss()
@@ -193,10 +174,6 @@ def main(args):
                     args.run_name,
                 )
                 plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{idx}", args)
-
-        d_A_scheduler.step()  # Update the learning rate after optimizer update
-        d_B_scheduler.step()  # Update the learning rate after optimizer update
-        g_scheduler.step()  # Update the learning rate after optimizer update
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
 
