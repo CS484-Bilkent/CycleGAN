@@ -4,6 +4,7 @@ cd ../datasets && \
     curl -O "https://efrosgans.eecs.berkeley.edu/cyclegan/datasets/${dataset_name}.zip" && \
     unzip ${dataset_name}.zip && \
     rm ${dataset_name}.zip && \
+    cd ./${dataset_name} && \
     mkdir train && \
     mkdir test && \
     mv ./trainA ./train/trainA && \

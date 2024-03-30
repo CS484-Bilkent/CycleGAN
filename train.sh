@@ -1,14 +1,15 @@
-CUDA_VISIBLE_DEVICES=1
-python scripts/train.py \
-    --num-workers 2 \
-    --save-checkpoints 1 \
-    --load-checkpoints 0 \
-    --load-checkpoints-path /home/mert.gencturk/cycle/CycleGAN/checkpoints/old_horse2zebra \
-    --save-checkpoints-epoch 10 \
-    --train-dir /home/mert.gencturk/cycle/datasets/apple2orange/train \
-    --test-dir /home/mert.gencturk/cycle/datasets/apple2orange/test \
-    --lambda-identity 0 \
-    --lambda-cycle 10 \
+CUDA_VISIBLE_DEVICES=4 python scripts/train.py \
+    --run-name monet2photo_first \
+    --train-dir /home/mert.gencturk/cycle/datasets/monet2photo/train \
+    --test-dir /home/mert.gencturk/cycle/datasets/monet2photo/test \
     --learning-rate 0.0002 \
-    --num-epochs 150 \
-    --run-name apple2orange_first
+    --lambda-identity 5 \
+    --lambda-cycle 10 \
+    --num-workers 2 \
+    --num-epochs 200 \
+    --load-checkpoints 0 \
+    --load-checkpoints-path /home \
+    --save-checkpoints 1 \
+    --save-checkpoints-epoch 10 \
+
+# for photo<->monet/cezanne etc. set lambda-identity = 5 (0.5)λ where λ is 10 and lambda-cycle = 10 (λ)
