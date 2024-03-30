@@ -12,6 +12,7 @@ TRAIN_DIR = "data/train"
 TEST_DIR = "dataset/test"
 BATCH_SIZE = 1  # Adjust as needed
 LEARNING_RATE = 2e-4  # TODO: try with 1e-5
+ADJUST_LEARNING_RATE = 2e-4  # TODO: try with 1e-5
 
 # From the paper:
 # The identity mapping loss of weight 0.5λ was used.

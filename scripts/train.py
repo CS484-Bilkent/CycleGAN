@@ -24,6 +24,25 @@ import torch.nn as nn
 from torch import optim
 
 
+def scheduler(optimizer, epoch, lr):
+    if epoch <= 100:
+        return optimizer
+    elif epoch <= 200:
+        new_lr = lr * (1 - (epoch - 100) / 100)
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = new_lr
+
+        log(f"optimizer lr ({lr}) has been adjusted to: {new_lr}, epoch: {epoch}")
+
+        return optimizer
+    else:
+        log("Kill the model. No updates are made after 200 epochs.")
+        for param_group in optimizer.param_groups:
+            param_group["lr"] = 0
+
+        return optimizer
+
+
 """
 Horse => A
 Zebra => B
@@ -174,6 +193,11 @@ def main(args):
                     args.run_name,
                 )
                 plot_loss(disc_losses, gen_losses, f"epoch_{epoch}_i_{idx}", args)
+
+        if args.adjust_learning_rate:
+            opt_disc_A = scheduler(opt_disc_A, epoch, args.learning_rate)
+            opt_disc_B = scheduler(opt_disc_B, epoch, args.learning_rate)
+            opt_gen = scheduler(opt_gen, epoch, args.learning_rate)
 
         if args.save_checkpoints and epoch % args.save_checkpoints_epoch == 0:
 

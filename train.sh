@@ -3,6 +3,7 @@ CUDA_VISIBLE_DEVICES=4 python scripts/train.py \
     --train-dir /home/mert.gencturk/cycle/datasets/monet2photo/train \
     --test-dir /home/mert.gencturk/cycle/datasets/monet2photo/test \
     --learning-rate 0.0002 \
+    --adjust-learning-rate 1 \
     --lambda-identity 5 \
     --lambda-cycle 10 \
     --num-workers 2 \
