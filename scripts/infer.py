@@ -62,12 +62,12 @@ def main(args):
         real_b = real_b.to(args.device)
 
         # generate fake ones
-        fake_b = generator_A(real_a)  # A to B
-        fake_a = generator_B(real_b)  # B to A
+        fake_b = generator_B(real_a)  # A to B
+        fake_a = generator_A(real_b)  # B to A
 
         # regenerate for cycle consistency
-        rec_a = generator_B(fake_b)  # Fake B to A
-        rec_b = generator_A(fake_a)  # Fake A to B
+        rec_a = generator_A(fake_b)  # Fake B to A
+        rec_b = generator_B(fake_a)  # Fake A to B
 
         save_cycle_consistent_images(real_a, fake_b, rec_a, real_b, fake_a, rec_b, 0, i, f"test/{args.run_name}")
 
